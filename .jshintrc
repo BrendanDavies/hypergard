@@ -18,7 +18,7 @@
   "nonew": true,
   "undef": true,
   "unused": true,
-  "strict": true,
+  "strict": false,
   "validthis": true,
   "trailing": true,
   "smarttabs": true,

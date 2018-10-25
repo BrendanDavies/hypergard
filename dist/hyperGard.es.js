@@ -597,6 +597,88 @@ function UrlParse() {
 
 var urlparse = new UrlParse();
 
+// TODO: Dynamically pull from package.json
+var version = '4.0.0';
+
+var defaultOptions = {
+  preloadHomepage: true,
+  cacheHomepage: false,
+  debug: false,
+
+  xhr: {
+    headers: {
+      Accept: 'application/hal+json, application/json, */*; q=0.01',
+      'X-HyperGard': version
+    }
+  }
+};
+
+/**
+ * Regex for HTTP Methods with no Body
+ */
+var excludeBody = /^(head|get)$/i;
+/**
+ * Regex for `hypermedia` reserved properties
+ */
+var excludedProps = /^(_embedded|_links|_forms)$/;
+
+function load(url, fetchOptions) {
+  var o = deepExtend({}, defaultOptions.xhr, fetchOptions);
+
+  return Promise.race([
+    xhrTimeout(fetchOptions.timeout || 60000),
+    fetch(url, o)
+  ]).then(xhrStatus);
+}
+
+function isObject(value) {
+  return !!value && {}.toString.call(value) === '[object Object]';
+}
+
+function xhrStatus(response) {
+  return (response.status >= 200 && response.status < 300) ? response :
+    Promise.reject(response instanceof Response ? response : new Response('', {
+      status: 503,
+      statusText: 'Possible CORS error'
+    }));
+}
+
+function xhrTimeout(timeout) {
+  return new Promise(function (res, rej) {
+    setTimeout(function () {
+      rej({
+        error: {
+          code: '0011',
+          msg: 'Fetch timeout',
+          timeout: timeout
+        }
+      });
+    }, timeout);
+  });
+}
+
+var loadNetworkResource = load;
+
+function urlSerialize(obj) {
+  return Object.keys(obj).map(function (key) {
+    return encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]);
+  }).join('&');
+}
+
+/**
+ * Will wrap any fetch performed in supplied middleware
+ * This will allow custom logging headers to be set without
+ * using before/after fetch events
+ * @param {Function} middleware Function to wrap fetches in
+ */
+function applyMiddleware(middleware) {
+  loadNetworkResource = (function (stack) {
+    return function (url, fetchOptions) {
+      return middleware(url, fetchOptions, stack);
+    };
+  })(loadNetworkResource);
+}
+
 /**
  * Copyright 2018 Comcast Cable Communications Management, LLC
  *
@@ -612,61 +694,8 @@ var urlparse = new UrlParse();
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-'use strict';
-
-var version = '4.0.0';
-var defaultOptions = {
-    preloadHomepage: true,
-    cacheHomepage: false,
-    debug: false,
-
-    xhr: {
-      headers: {
-        Accept: 'application/hal+json, application/json, */*; q=0.01',
-        'X-HyperGard': version
-      }
-    }
-  };
-var excludedProps = /^(_embedded|_links|_forms)$/;
-var excludeBody = /^(head|get)$/i;
 var concat = [].concat;
 var keys = Object.keys;
-var isObject = function(value) {
-    return !!value && {}.toString.call(value) === '[object Object]';
-  };
-var xhrStatus = function(response) {
-    return (response.status >= 200 && response.status < 300) ? response :
-      Promise.reject(response instanceof Response ? response : new Response('', {
-        status: 503,
-        statusText: 'Possible CORS error'
-      }));
-  };
-var xhrTimeout = function(timeout) {
-    return new Promise(function(res, rej) {
-      setTimeout(function() {
-        rej({
-          error: {
-            code: '0011',
-            msg: 'Fetch timeout',
-            timeout: timeout
-          }
-        });
-      }, timeout);
-    });
-  };
-var load = function(url, fetchOptions) {
-    var o = deepExtend({}, defaultOptions.xhr, fetchOptions);
-
-    return Promise.race([
-        xhrTimeout(fetchOptions.timeout || 60000),
-        fetch(url, o)
-      ]).then(xhrStatus);
-  };
-var urlSerialize = function(obj) {
-    return Object.keys(obj).map(function(key) {
-      return encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]);
-    }).join('&');
-  };
 var HyperGard = function(endpoint, initOptions) {
     var
       homepage,
@@ -1137,7 +1166,7 @@ var HyperGard = function(endpoint, initOptions) {
         });
       }
 
-      return load(url, o).then(onSuccess, onError);
+      return loadNetworkResource(url, o).then(onSuccess, onError);
     };
 
     /**
@@ -1194,7 +1223,7 @@ var HyperGard = function(endpoint, initOptions) {
 
       if (!homepageLoaded) {
         homepageLoaded = true;
-        homepage = load(endpoint, o).then(onSuccess, onError);
+        homepage = loadNetworkResource(endpoint, o).then(onSuccess, onError);
       }
 
       return homepage;
@@ -1236,20 +1265,6 @@ var HyperGard = function(endpoint, initOptions) {
   };
 
 HyperGard.prototype.version = version;
-
-/**
- * Will wrap any fetch performed in supplied middleware
- * This will allow custom logging headers to be set without
- * using before/after fetch events
- * @param {Function} middleware Function to wrap fetches in
- */
-function applyMiddleware(middleware) {
-  load = (function(stack) {
-    return function(url, fetchOptions) {
-      return middleware(url, fetchOptions, stack);
-    };
-  })(load);
-}
 
 /**
  * Will apply an array of middleware functions around the load method

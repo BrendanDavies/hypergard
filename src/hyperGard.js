@@ -13,73 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-'use strict';
-
 import deepExtend from '../lib/extend.js';
 import urltemplate from '../lib/urltemplate.js';
 import urlparse from '../lib/urlparse.js';
+import { defaultOptions, excludeBody, excludedProps, version } from './common';
+import { applyMiddleware, isObject, loadNetworkResource, urlSerialize } from './helpers';
 
 var
-  version = '4.0.0',
 
-  defaultOptions = {
-    preloadHomepage: true,
-    cacheHomepage: false,
-    debug: false,
-
-    xhr: {
-      headers: {
-        Accept: 'application/hal+json, application/json, */*; q=0.01',
-        'X-HyperGard': version
-      }
-    }
-  },
-
-  excludedProps = /^(_embedded|_links|_forms)$/,
-  excludeBody = /^(head|get)$/i,
   concat = [].concat,
   keys = Object.keys,
 
-  isObject = function(value) {
-    return !!value && {}.toString.call(value) === '[object Object]';
-  },
-
-  xhrStatus = function(response) {
-    return (response.status >= 200 && response.status < 300) ? response :
-      Promise.reject(response instanceof Response ? response : new Response('', {
-        status: 503,
-        statusText: 'Possible CORS error'
-      }));
-  },
-
-  xhrTimeout = function(timeout) {
-    return new Promise(function(res, rej) {
-      setTimeout(function() {
-        rej({
-          error: {
-            code: '0011',
-            msg: 'Fetch timeout',
-            timeout: timeout
-          }
-        });
-      }, timeout);
-    });
-  },
-
-  load = function(url, fetchOptions) {
-    var o = deepExtend({}, defaultOptions.xhr, fetchOptions);
-
-    return Promise.race([
-        xhrTimeout(fetchOptions.timeout || 60000),
-        fetch(url, o)
-      ]).then(xhrStatus);
-  },
-
-  urlSerialize = function(obj) {
-    return Object.keys(obj).map(function(key) {
-      return encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]);
-    }).join('&');
-  },
+  // load = loadNetworkResource,
 
   HyperGard = function(endpoint, initOptions) {
     var
@@ -551,7 +496,7 @@ var
         });
       }
 
-      return load(url, o).then(onSuccess, onError);
+      return loadNetworkResource(url, o).then(onSuccess, onError);
     };
 
     /**
@@ -608,7 +553,7 @@ var
 
       if (!homepageLoaded) {
         homepageLoaded = true;
-        homepage = load(endpoint, o).then(onSuccess, onError);
+        homepage = loadNetworkResource(endpoint, o).then(onSuccess, onError);
       }
 
       return homepage;
@@ -650,20 +595,6 @@ var
   };
 
 HyperGard.prototype.version = version;
-
-/**
- * Will wrap any fetch performed in supplied middleware
- * This will allow custom logging headers to be set without
- * using before/after fetch events
- * @param {Function} middleware Function to wrap fetches in
- */
-function applyMiddleware(middleware) {
-  load = (function(stack) {
-    return function(url, fetchOptions) {
-      return middleware(url, fetchOptions, stack);
-    };
-  })(load);
-}
 
 /**
  * Will apply an array of middleware functions around the load method
