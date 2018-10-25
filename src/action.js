@@ -1,7 +1,5 @@
 import { excludeBody } from './common';
 import { isObject , urlSerialize } from './helpers';
-// import { Resource } from './resource';
-// import deepExtend from '../lib/extend.js';
 
 /**
  * Action instance
@@ -148,74 +146,3 @@ export function Action(parent, name, action, params, type) {
 
   api.setParams(params);
 }
-
-// Action.prototype.fetch = function (fetchOptions) {
-//   fetchOptions || (fetchOptions = {});
-
-//   var
-//     url = fetchOptions.url || this.getActionUrl(),
-//     rawUrl = this.getRawActionUrl(),
-//     name = this.getActionName(),
-//     payLoad = this.getPayload ? this.getPayload() : '',
-//     o = deepExtend({
-//       method: this.getMethod(),
-//       action: name,
-//     }, defaultOptions.xhr, fetchOptions),
-
-//     onSuccess = function (response) {
-//       if (response.status === 204) {
-//         return Promise.resolve({
-//           action: name,
-//           data: '',
-//           xhr: response
-//         });
-//       }
-
-//       return response.json().then(function (data) {
-//         return {
-//           action: name,
-//           data: isObject(data) ? new Resource(url, data) : response.text(),
-//           xhr: response
-//         };
-//       }, function () {
-//         return {
-//           action: name,
-//           data: response.text(),
-//           xhr: response
-//         };
-//       });
-//     },
-
-//     onError = function (response) {
-//       return Promise.reject(response instanceof Response ? {
-//         error: {
-//           action: name,
-//           code: '0021',
-//           msg: 'Failed to retrieve action'
-//         },
-//         xhr: response
-//       } : response);
-//     };
-
-//   if (!excludeBody.test(o.method) && isObject(payLoad)) {
-//     o.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-//     o.body = urlSerialize(payLoad);
-//   }
-
-//   if (!url) {
-//     return Promise.reject({
-//       error: {
-//         action: name,
-//         code: '0020',
-//         msg: 'Url is not provided for this action'
-//       }
-//     });
-//   } else if (o.method === 'GET' && !fetchOptions.force && this.linkRefs.hasOwnProperty(rawUrl)) {
-//     return Promise.resolve({
-//       action: name,
-//       data: this.linkRefs[rawUrl]
-//     });
-//   }
-
-//   return loadNetworkResource(url, o).then(onSuccess, onError);
-// };

@@ -1,7 +1,12 @@
 import deepExtend from '../lib/extend';
 import { defaultOptions } from './common';
 
-function load(url, fetchOptions) {
+/**
+ * Load a network resource, with added timeout & HTTP Status code processing
+ * @param {String} url
+ * @param {Object} fetchOptions - Options to pass to fetch
+ */
+export function load(url, fetchOptions) {
   var o = deepExtend({}, defaultOptions.xhr, fetchOptions);
 
   return Promise.race([
@@ -10,10 +15,18 @@ function load(url, fetchOptions) {
   ]).then(xhrStatus);
 }
 
+/**
+ * Checks if the given parameter is an Object
+ * @param {Object} value
+ */
 export function isObject(value) {
   return !!value && {}.toString.call(value) === '[object Object]';
 }
 
+/**
+ * Handles HTTP Status codes, rejecting if it is a non-200
+ * @param {Object} response
+ */
 export function xhrStatus(response) {
   return (response.status >= 200 && response.status < 300) ? response :
     Promise.reject(response instanceof Response ? response : new Response('', {
@@ -22,6 +35,10 @@ export function xhrStatus(response) {
     }));
 }
 
+/**
+ * Creates a promise that will reject with a timeout error
+ * @param {Number} timeout - milliseconds
+ */
 export function xhrTimeout(timeout) {
   return new Promise(function (res, rej) {
     setTimeout(function () {
@@ -36,24 +53,12 @@ export function xhrTimeout(timeout) {
   });
 }
 
-export var loadNetworkResource = load;
-
+/**
+ * Converts object to serialized string for concating to url
+ * @param {Object} obj - object to serialize
+ */
 export function urlSerialize(obj) {
   return Object.keys(obj).map(function (key) {
     return encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]);
   }).join('&');
-}
-
-/**
- * Will wrap any fetch performed in supplied middleware
- * This will allow custom logging headers to be set without
- * using before/after fetch events
- * @param {Function} middleware Function to wrap fetches in
- */
-export function applyMiddleware(middleware) {
-  loadNetworkResource = (function (stack) {
-    return function (url, fetchOptions) {
-      return middleware(url, fetchOptions, stack);
-    };
-  })(loadNetworkResource);
 }

@@ -16,7 +16,12 @@
 import deepExtend from '../lib/extend.js';
 import { Action } from './action';
 import { defaultOptions, excludeBody, excludedProps, version } from './common';
-import { applyMiddleware, isObject, loadNetworkResource, urlSerialize } from './helpers';
+import { isObject, load, urlSerialize } from './helpers';
+
+/**
+ * Wrappable load function for applying middleware to fetches
+ */
+var wrappedLoad = load;
 
 function HyperGard(endpoint, initOptions) {
   var
@@ -344,7 +349,7 @@ function HyperGard(endpoint, initOptions) {
       });
     }
 
-    return loadNetworkResource(url, o).then(onSuccess, onError);
+    return wrappedLoad(url, o).then(onSuccess, onError);
   };
 
   /**
@@ -401,7 +406,7 @@ function HyperGard(endpoint, initOptions) {
 
     if (!homepageLoaded) {
       homepageLoaded = true;
-      homepage = loadNetworkResource(endpoint, o).then(onSuccess, onError);
+      homepage = wrappedLoad(endpoint, o).then(onSuccess, onError);
     }
 
     return homepage;
@@ -443,6 +448,20 @@ function HyperGard(endpoint, initOptions) {
 }
 
 HyperGard.prototype.version = version;
+
+/**
+ * Will wrap any fetch performed in supplied middleware
+ * This will allow custom logging headers to be set without
+ * using before/after fetch events
+ * @param {Function} middleware Function to wrap fetches in
+ */
+function applyMiddleware(middleware) {
+  wrappedLoad = (function (stack) {
+    return function (url, fetchOptions) {
+      return middleware(url, fetchOptions, stack);
+    };
+  })(wrappedLoad);
+}
 
 /**
  * Will apply an array of middleware functions around the load method

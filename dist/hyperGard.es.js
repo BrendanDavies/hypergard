@@ -139,11 +139,13 @@ var deepExtend = function(/*obj_1, [obj_2], [obj_N]*/) {
 // TODO: Dynamically pull from package.json
 var version = '4.0.0';
 
+/**
+ * Default Hypergard Options
+ */
 var defaultOptions = {
   preloadHomepage: true,
   cacheHomepage: false,
   debug: false,
-
   xhr: {
     headers: {
       Accept: 'application/hal+json, application/json, */*; q=0.01',
@@ -170,10 +172,18 @@ function load(url, fetchOptions) {
   ]).then(xhrStatus);
 }
 
+/**
+ * Checks if the given parameter is an Object
+ * @param {Object} value
+ */
 function isObject(value) {
   return !!value && {}.toString.call(value) === '[object Object]';
 }
 
+/**
+ * Handles HTTP Status codes, rejecting if it is a non-200
+ * @param {Object} response
+ */
 function xhrStatus(response) {
   return (response.status >= 200 && response.status < 300) ? response :
     Promise.reject(response instanceof Response ? response : new Response('', {
@@ -182,6 +192,10 @@ function xhrStatus(response) {
     }));
 }
 
+/**
+ * Creates a promise that will reject with a timeout error
+ * @param {Number} timeout - milliseconds
+ */
 function xhrTimeout(timeout) {
   return new Promise(function (res, rej) {
     setTimeout(function () {
@@ -196,26 +210,14 @@ function xhrTimeout(timeout) {
   });
 }
 
-var loadNetworkResource = load;
-
+/**
+ * Converts object to serialized string for concating to url
+ * @param {Object} obj - object to serialize
+ */
 function urlSerialize(obj) {
   return Object.keys(obj).map(function (key) {
     return encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]);
   }).join('&');
-}
-
-/**
- * Will wrap any fetch performed in supplied middleware
- * This will allow custom logging headers to be set without
- * using before/after fetch events
- * @param {Function} middleware Function to wrap fetches in
- */
-function applyMiddleware(middleware) {
-  loadNetworkResource = (function (stack) {
-    return function (url, fetchOptions) {
-      return middleware(url, fetchOptions, stack);
-    };
-  })(loadNetworkResource);
 }
 
 function Action(parent, name, action, params, type) {
@@ -349,77 +351,6 @@ function Action(parent, name, action, params, type) {
   api.setParams(params);
 }
 
-// Action.prototype.fetch = function (fetchOptions) {
-//   fetchOptions || (fetchOptions = {});
-
-//   var
-//     url = fetchOptions.url || this.getActionUrl(),
-//     rawUrl = this.getRawActionUrl(),
-//     name = this.getActionName(),
-//     payLoad = this.getPayload ? this.getPayload() : '',
-//     o = deepExtend({
-//       method: this.getMethod(),
-//       action: name,
-//     }, defaultOptions.xhr, fetchOptions),
-
-//     onSuccess = function (response) {
-//       if (response.status === 204) {
-//         return Promise.resolve({
-//           action: name,
-//           data: '',
-//           xhr: response
-//         });
-//       }
-
-//       return response.json().then(function (data) {
-//         return {
-//           action: name,
-//           data: isObject(data) ? new Resource(url, data) : response.text(),
-//           xhr: response
-//         };
-//       }, function () {
-//         return {
-//           action: name,
-//           data: response.text(),
-//           xhr: response
-//         };
-//       });
-//     },
-
-//     onError = function (response) {
-//       return Promise.reject(response instanceof Response ? {
-//         error: {
-//           action: name,
-//           code: '0021',
-//           msg: 'Failed to retrieve action'
-//         },
-//         xhr: response
-//       } : response);
-//     };
-
-//   if (!excludeBody.test(o.method) && isObject(payLoad)) {
-//     o.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-//     o.body = urlSerialize(payLoad);
-//   }
-
-//   if (!url) {
-//     return Promise.reject({
-//       error: {
-//         action: name,
-//         code: '0020',
-//         msg: 'Url is not provided for this action'
-//       }
-//     });
-//   } else if (o.method === 'GET' && !fetchOptions.force && this.linkRefs.hasOwnProperty(rawUrl)) {
-//     return Promise.resolve({
-//       action: name,
-//       data: this.linkRefs[rawUrl]
-//     });
-//   }
-
-//   return loadNetworkResource(url, o).then(onSuccess, onError);
-// };
-
 /**
  * Copyright 2018 Comcast Cable Communications Management, LLC
  *
@@ -435,6 +366,8 @@ function Action(parent, name, action, params, type) {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var wrappedLoad = load;
+
 function HyperGard(endpoint, initOptions) {
   var
     homepage,
@@ -761,7 +694,7 @@ function HyperGard(endpoint, initOptions) {
       });
     }
 
-    return loadNetworkResource(url, o).then(onSuccess, onError);
+    return wrappedLoad(url, o).then(onSuccess, onError);
   };
 
   /**
@@ -818,7 +751,7 @@ function HyperGard(endpoint, initOptions) {
 
     if (!homepageLoaded) {
       homepageLoaded = true;
-      homepage = loadNetworkResource(endpoint, o).then(onSuccess, onError);
+      homepage = wrappedLoad(endpoint, o).then(onSuccess, onError);
     }
 
     return homepage;
@@ -860,6 +793,20 @@ function HyperGard(endpoint, initOptions) {
 }
 
 HyperGard.prototype.version = version;
+
+/**
+ * Will wrap any fetch performed in supplied middleware
+ * This will allow custom logging headers to be set without
+ * using before/after fetch events
+ * @param {Function} middleware Function to wrap fetches in
+ */
+function applyMiddleware(middleware) {
+  wrappedLoad = (function (stack) {
+    return function (url, fetchOptions) {
+      return middleware(url, fetchOptions, stack);
+    };
+  })(wrappedLoad);
+}
 
 /**
  * Will apply an array of middleware functions around the load method
