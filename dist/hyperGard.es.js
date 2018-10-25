@@ -136,467 +136,6 @@ var deepExtend = function(/*obj_1, [obj_2], [obj_N]*/) {
   typeObj["[object " + name + "]"] = name.toLowerCase();
 });
 
-/**
- * Copyright 2018 Comcast Cable Communications Management, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or   implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/**
- * @constructor
- */
-function UrlTemplate() {
-  var
-    /**
-     * Operators
-     * @type {String[]}
-     */
-    operators = ['+', '#', '.', '/', ';', '?', '&'],
-
-    parseTemplate = /\{([^\{\}]+)\}|([^\{\}]+)/g,
-    parseVariable = /([^:\*]*)(?::(\d+)|(\*))?/,
-
-    /**
-     * @private
-     * @param {string} str
-     * @return {string}
-     */
-    encodeReserved = function(str) {
-      return str.split(/(%[0-9A-Fa-f]{2})/g).map(function(part) {
-        if (!/%[0-9A-Fa-f]/.test(part)) {
-          part = encodeURI(part);
-        }
-        return part;
-      }).join('');
-    },
-
-    /**
-     * @private
-     * @param {string} operator
-     * @param {string} value
-     * @param {string} key
-     * @return {string}
-     */
-    encodeValue = function(operator, value, key) {
-      value = (operator === '+' || operator === '#') ? encodeReserved(value) : encodeURIComponent(value);
-      return key ? encodeURIComponent(key) + '=' + value : value;
-    },
-
-    /**
-     * @private
-     * @param {*} value
-     * @return {boolean}
-     */
-    isDefined = function(value) {
-      return value !== undefined && value !== null;
-    },
-
-    /**
-     * @private
-     * @param {string} operator
-     * @return {boolean}
-     */
-    isKeyOperator = function(operator) {
-      return operator === ';' || operator === '&' || operator === '?';
-    },
-
-    /**
-     * @private
-     * @param {Object} context
-     * @param {string} operator
-     * @param {string} key
-     * @param {string} modifier
-     */
-    getValues = function(context, operator, key, modifier) {
-      var
-        value = context[key],
-        result = [];
-
-      if (typeof value !== 'undefined' && value !== null) {
-        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-          value = value.toString();
-
-          if (modifier && modifier !== '*') {
-            value = value.substring(0, parseInt(modifier, 10));
-          }
-
-          result.push(encodeValue(operator, value, isKeyOperator(operator) ? key : null));
-        } else {
-          if (modifier === '*') {
-            if (Array.isArray(value)) {
-              value.filter(isDefined).forEach(function(value) {
-                result.push(encodeValue(operator, value, isKeyOperator(operator) ? key : null));
-              });
-            } else {
-              Object.keys(value).forEach(function(k) {
-                if (isDefined(value[k])) {
-                  result.push(encodeValue(operator, value[k], k));
-                }
-              });
-            }
-          } else {
-            var tmp = [];
-
-            if (Array.isArray(value)) {
-              value.filter(isDefined).forEach(function(value) {
-                tmp.push(encodeValue(operator, value, ''));
-              });
-            } else {
-              Object.keys(value).forEach(function(k) {
-                if (isDefined(value[k])) {
-                  tmp.push(encodeURIComponent(k));
-                  tmp.push(encodeValue(operator, value[k].toString(), ''));
-                }
-              });
-            }
-
-            if (isKeyOperator(operator)) {
-              result.push(encodeURIComponent(key) + '=' + tmp.join(','));
-            } else if (tmp.length !== 0) {
-              result.push(tmp.join(','));
-            }
-          }
-        }
-      } else {
-        if (operator === ';') {
-          result.push(encodeURIComponent(key));
-        } else if (value === '' && (operator === '&' || operator === '?')) {
-          result.push(encodeURIComponent(key) + '=');
-        } else if (value === '') {
-          result.push('');
-        }
-      }
-
-      return result;
-    };
-
-  /**
-   * @param {String} url
-   * @param {Object} params to be applied
-   * @return {string}
-   */
-  this.expand = function(url, params) {
-    return url.replace(parseTemplate, function(_, expression, literal) {
-      var
-        result;
-
-      if (expression) {
-        var
-          operator,
-          values = [];
-
-        if (operators.indexOf(expression.charAt(0)) !== -1) {
-          operator = expression.charAt(0);
-          expression = expression.substr(1);
-
-          if ((url.match(/\?/g) || []).length > 1) {
-            operator = '&';
-          }
-        }
-
-        expression.split(/,/g).forEach(function(variable) {
-          var tmp = parseVariable.exec(variable);
-          values.push.apply(values, getValues(params, operator, tmp[1], tmp[2] || tmp[3]));
-        });
-
-        if (operator && operator !== '+') {
-          var separator = ',';
-
-          if (operator === '?') {
-            separator = '&';
-          } else if (operator !== '#') {
-            separator = operator;
-          }
-
-          result = (values.length ? operator : '') + values.join(separator);
-        } else {
-          result = values.join(',');
-        }
-      } else {
-        result = encodeReserved(literal);
-      }
-
-      return result;
-    });
-  };
-
-  this.extractParams = function(url) {
-    var
-      result = [];
-
-    url.replace(parseTemplate, function(_, expression) {
-      if (expression) {
-        if (operators.indexOf(expression.charAt(0)) !== -1) {
-          expression = expression.substr(1);
-        }
-        result = result.concat(expression.split(/,/g));
-      }
-    });
-
-    return result;
-  };
-}
-
-var urltemplate = new UrlTemplate();
-
-/**
- * Copyright 2018 Comcast Cable Communications Management, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or   implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
- /**
- * @constructor
- */
-function UrlParse() {
-  var
-  // scheme (optional), host, port
-    fullurl = /^([A-Za-z]+)?(:?\/\/)([0-9.\-A-Za-z]*)(?::(\d+))?(.*)$/,
-  // path, query, fragment
-    parse_leftovers = /([^?#]*)?(?:\?([^#]*))?(?:#(.*))?$/;
-
-  // Unlike to be useful standalone
-  //
-  // NORMALIZE PATH with "../" and "./"
-  //   http://en.wikipedia.org/wiki/URL_normalization
-  //   http://tools.ietf.org/html/rfc3986#section-5.2.3
-  //
-  this.normalizepath = function(path) {
-    if (!path || path === '/') {
-      return '/';
-    }
-
-    var
-      parts = path.split('/'),
-      newparts = [];
-
-    // make sure path always starts with '/'
-    if (parts[0]) {
-      newparts.push('');
-    }
-
-    parts.forEach(function(part) {
-      if (part === '..') {
-        if (newparts.length > 1) {
-          newparts.pop();
-        } else {
-          newparts.push(part);
-        }
-      } else if (part !== '.') {
-        newparts.push(part);
-      }
-    });
-
-    return newparts.join('/') || '/';
-  };
-
-  //
-  // Does many of the normalizations that the stock
-  //  python urlsplit/urlunsplit/urljoin neglects
-  //
-  // Doesn't do hex-escape normalization on path or query
-  //   %7e -> %7E
-  // Nor, '+' <--> %20 translation
-  //
-  this.urlnormalize = function(url) {
-    var parts = this.urlsplit(url);
-
-    switch (parts.scheme) {
-      case 'file':
-        // files can't have query strings
-        //  and we don't bother with fragments
-        parts.query = '';
-        parts.fragment = '';
-        break;
-      case 'http':
-      case 'https':
-        // remove default port
-        if ((parts.scheme === 'http' && parts.port == 80) ||
-          (parts.scheme === 'https' && parts.port == 443)) {
-          delete parts.port;
-          // hostname is already lower case
-          parts.netloc = parts.hostname;
-        }
-        break;
-      default:
-        // if we don't have specific normalizations for this
-        // scheme, return the original url unmolested
-        return url;
-    }
-
-    // for [file|http|https].  Not sure about other schemes
-    parts.path = this.normalizepath(parts.path);
-
-    return this.urlunsplit(parts);
-  };
-
-  this.urldefrag = function(url) {
-    var idx = url.indexOf('#');
-    return (idx === -1) ? [url, ''] : [url.substr(0, idx), url.substr(idx + 1)];
-  };
-
-  this.urlsplit = function(url, default_scheme, allow_fragments) {
-    allow_fragments = allow_fragments !== false;
-
-    var
-      leftover,
-      o = {},
-      parts = (url || '').match(fullurl);
-
-    if (parts) {
-      o.scheme = parts[1] || default_scheme || '';
-      o.hostname = parts[3].toLowerCase() || '';
-      o.port = parseInt(parts[4], 10) || '';
-      // Probably should grab the netloc from regexp
-      //  and then parse again for hostname/port
-
-      o.netloc = parts[3];
-
-      if (parts[4]) {
-        o.netloc += ':' + parts[4];
-      }
-
-      leftover = parts[5];
-    } else {
-      o.scheme = default_scheme || '';
-      o.netloc = '';
-      o.hostname = '';
-      leftover = url;
-    }
-    o.scheme = o.scheme.toLowerCase();
-
-    parts = leftover.match(parse_leftovers);
-
-    o.path = parts[1] || '';
-    o.query = parts[2] || '';
-
-    o.fragment = allow_fragments ? (parts[3] || '') : '';
-
-    return o;
-  };
-
-  this.urlunsplit = function(o) {
-    var s = '';
-
-    if (o.scheme) {
-      s += o.scheme + '://';
-    }
-
-    if (o.netloc) {
-      if (s === '') {
-        s += '//';
-      }
-
-      s += o.netloc;
-    } else if (o.hostname) {
-      // extension.  Python only uses netloc
-      if (s === '') {
-        s += '//';
-      }
-
-      s += o.hostname;
-
-      if (o.port) {
-        s += ':' + o.port;
-      }
-    }
-
-    if (o.path) {
-      s += o.path;
-    }
-
-    if (o.query) {
-      s += '?' + o.query;
-    }
-
-    if (o.fragment) {
-      s += '#' + o.fragment;
-    }
-
-    return s;
-  };
-
-  this.urljoin = function(base, url, allow_fragments) {
-    if (typeof allow_fragments === 'undefined') {
-      allow_fragments = true;
-    }
-
-    var url_parts = this.urlsplit(url);
-
-    // if url parts has a scheme (i.e. absolute)
-    // then nothing to do
-    if (url_parts.scheme) {
-      return !allow_fragments ? url : this.urldefrag(url)[0];
-    }
-
-    var base_parts = this.urlsplit(base);
-
-    // copy base, only if not present
-    if (!base_parts.scheme) {
-      base_parts.scheme = url_parts.scheme;
-    }
-
-    // copy netloc, only if not present
-    if (!base_parts.netloc || !base_parts.hostname) {
-      base_parts.netloc = url_parts.netloc;
-      base_parts.hostname = url_parts.hostname;
-      base_parts.port = url_parts.port;
-    }
-
-    // paths
-    if (url_parts.path.length > 0) {
-      if (url_parts.path.charAt(0) === '/') {
-        base_parts.path = url_parts.path;
-      } else {
-        // relative path.. get rid of "current filename" and
-        //   replace.  Same as var parts =
-        //   base_parts.path.split('/'); parts[parts.length-1] =
-        //   url_parts.path; base_parts.path = parts.join('/');
-        var idx = base_parts.path.lastIndexOf('/');
-        if (idx === -1) {
-          base_parts.path = url_parts.path;
-        } else {
-          base_parts.path = base_parts.path.substr(0, idx) + '/' +
-            url_parts.path;
-        }
-      }
-    }
-
-    // clean up path
-    base_parts.path = this.normalizepath(base_parts.path);
-
-    // copy query string
-    base_parts.query = url_parts.query;
-
-    // copy fragments
-    base_parts.fragment = allow_fragments ? url_parts.fragment : '';
-
-    return this.urlunsplit(base_parts);
-  };
-}
-
-var urlparse = new UrlParse();
-
 // TODO: Dynamically pull from package.json
 var version = '4.0.0';
 
@@ -678,6 +217,208 @@ function applyMiddleware(middleware) {
     };
   })(loadNetworkResource);
 }
+
+function Action(parent, name, action, params, type) {
+  var
+    api = this,
+    rawUrl = (action.href || action.action || '').replace(/^#/, ''),
+    method = action.method || (type === 'form' ? 'POST' : 'GET'),
+    actionUrl = '',
+    payLoad = '';
+
+  api.getActionName = function () {
+    return name;
+  };
+
+  /**
+   * Get action type
+   * @returns {String}
+   */
+  api.getActionType = function () {
+    return type;
+  };
+
+  /**
+   * Get formatted url for the action
+   * @returns {String}
+   */
+  api.getActionUrl = function () {
+    return actionUrl;
+  };
+
+  /**
+   * Get action method
+   * @returns {String}
+   */
+  api.getMethod = function () {
+    return method;
+  };
+
+  /**
+   * Get params that need are required for the action
+   * @returns {Array}
+   */
+  api.getParams = function () {
+    return urltemplate.extractParams(rawUrl);
+  };
+
+  /**
+   * Get un-formatted url for the action
+   * @returns {String}
+   */
+  api.getRawActionUrl = function () {
+    return rawUrl;
+  };
+
+  /**
+   * Get action title
+   * @returns {String}
+   */
+  api.getTitle = function () {
+    return action.title || '';
+  };
+
+  /**
+   * Get action template flag
+   * @returns {Boolean}
+   */
+  api.isTemplated = function () {
+    return action.templated || false;
+  };
+
+  api.setParams = function (params) {
+    actionUrl = action.templated ? urltemplate.expand(rawUrl, params || {}) : rawUrl;
+
+    if (actionUrl) {
+      actionUrl = urlparse.urljoin(action.curie ? action.curie.href : parent.getBase(), actionUrl);
+    }
+
+    if (type === 'form') {
+      if (action.fields && isObject(params)) {
+        payLoad = {};
+        Object.keys(action.fields).forEach(function (field) {
+          if (params.hasOwnProperty(field)) {
+            payLoad[field] = params[field];
+          } else if (action.fields[field].hasOwnProperty('default')) {
+            payLoad[field] = action.fields[field]['default'];
+          }
+        });
+      } else if (params) {
+        payLoad = JSON.stringify(params);
+      }
+
+      if (excludeBody.test(method) && payLoad) {
+        actionUrl = urlparse.urljoin(actionUrl, '?' + urlSerialize(payLoad));
+        payLoad = '';
+      }
+    }
+
+    return api;
+  };
+
+  if (type === 'form') {
+    /**
+     * Get form fields for the form action
+     * @returns {Object}
+     */
+    api.getFields = function () {
+      return action.fields || {};
+    };
+
+    /**
+     * Get payload to be submitted for the form action
+     * @returns {Object}
+     */
+    api.getPayload = function () {
+      return payLoad;
+    };
+  }
+
+  if (action.curie) {
+    /**
+     * Get curie documentation url
+     * @returns {String}
+     */
+    api.getDocUrl = function () {
+      return urltemplate.expand(action.curie.href, {
+        rel: name.split(':')[1]
+      });
+    };
+  }
+
+  api.setParams(params);
+}
+
+// Action.prototype.fetch = function (fetchOptions) {
+//   fetchOptions || (fetchOptions = {});
+
+//   var
+//     url = fetchOptions.url || this.getActionUrl(),
+//     rawUrl = this.getRawActionUrl(),
+//     name = this.getActionName(),
+//     payLoad = this.getPayload ? this.getPayload() : '',
+//     o = deepExtend({
+//       method: this.getMethod(),
+//       action: name,
+//     }, defaultOptions.xhr, fetchOptions),
+
+//     onSuccess = function (response) {
+//       if (response.status === 204) {
+//         return Promise.resolve({
+//           action: name,
+//           data: '',
+//           xhr: response
+//         });
+//       }
+
+//       return response.json().then(function (data) {
+//         return {
+//           action: name,
+//           data: isObject(data) ? new Resource(url, data) : response.text(),
+//           xhr: response
+//         };
+//       }, function () {
+//         return {
+//           action: name,
+//           data: response.text(),
+//           xhr: response
+//         };
+//       });
+//     },
+
+//     onError = function (response) {
+//       return Promise.reject(response instanceof Response ? {
+//         error: {
+//           action: name,
+//           code: '0021',
+//           msg: 'Failed to retrieve action'
+//         },
+//         xhr: response
+//       } : response);
+//     };
+
+//   if (!excludeBody.test(o.method) && isObject(payLoad)) {
+//     o.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+//     o.body = urlSerialize(payLoad);
+//   }
+
+//   if (!url) {
+//     return Promise.reject({
+//       error: {
+//         action: name,
+//         code: '0020',
+//         msg: 'Url is not provided for this action'
+//       }
+//     });
+//   } else if (o.method === 'GET' && !fetchOptions.force && this.linkRefs.hasOwnProperty(rawUrl)) {
+//     return Promise.resolve({
+//       action: name,
+//       data: this.linkRefs[rawUrl]
+//     });
+//   }
+
+//   return loadNetworkResource(url, o).then(onSuccess, onError);
+// };
 
 /**
  * Copyright 2018 Comcast Cable Communications Management, LLC
@@ -932,150 +673,6 @@ var HyperGard = function(endpoint, initOptions) {
         if (link) {
           linkRefs[link] = obj;
         }
-      },
-
-      /**
-       * Action instance
-       * @param {Object} parent Parent resource
-       * @param {String} name Action name
-       * @param {Object} action Action object
-       * @param {Object} [params] Params to be used for templated action
-       * @param {String} type Internal identification of action type
-       * @constructor
-       */
-      Action = function(parent, name, action, params, type) {
-        var
-          api = this,
-          rawUrl = (action.href || action.action || '').replace(/^#/, ''),
-          method = action.method || (type === 'form' ? 'POST' : 'GET'),
-          actionUrl = '',
-          payLoad = '';
-
-        /**
-         * Get action name
-         * @returns {String}
-         */
-        api.getActionName = function() {
-          return name;
-        };
-
-        /**
-         * Get action type
-         * @returns {String}
-         */
-        api.getActionType = function() {
-          return type;
-        };
-
-        /**
-         * Get formatted url for the action
-         * @returns {String}
-         */
-        api.getActionUrl = function() {
-          return actionUrl;
-        };
-
-        /**
-         * Get action method
-         * @returns {String}
-         */
-        api.getMethod = function() {
-          return method;
-        };
-
-        /**
-         * Get params that need are required for the action
-         * @returns {Array}
-         */
-        api.getParams = function() {
-          return urltemplate.extractParams(rawUrl);
-        };
-
-        /**
-         * Get un-formatted url for the action
-         * @returns {String}
-         */
-        api.getRawActionUrl = function() {
-          return rawUrl;
-        };
-
-        /**
-         * Get action title
-         * @returns {String}
-         */
-        api.getTitle = function() {
-          return action.title || '';
-        };
-
-        /**
-         * Get action template flag
-         * @returns {Boolean}
-         */
-        api.isTemplated = function() {
-          return action.templated || false;
-        };
-
-        api.setParams = function(params) {
-          actionUrl = action.templated ? urltemplate.expand(rawUrl, params || {}) : rawUrl;
-
-          if (actionUrl) {
-            actionUrl = urlparse.urljoin(action.curie ? action.curie.href : parent.getBase(), actionUrl);
-          }
-
-          if (type === 'form') {
-            if (action.fields && isObject(params)) {
-              payLoad = {};
-              keys(action.fields).forEach(function(field) {
-                if (params.hasOwnProperty(field)) {
-                  payLoad[field] = params[field];
-                } else if (action.fields[field].hasOwnProperty('default')) {
-                  payLoad[field] = action.fields[field]['default'];
-                }
-              });
-            } else if (params) {
-              payLoad = JSON.stringify(params);
-            }
-
-            if (excludeBody.test(method) && payLoad) {
-              actionUrl = urlparse.urljoin(actionUrl, '?' + urlSerialize(payLoad));
-              payLoad = '';
-            }
-          }
-
-          return api;
-        };
-
-        if (type === 'form') {
-          /**
-           * Get form fields for the form action
-           * @returns {Object}
-           */
-          api.getFields = function() {
-            return action.fields || {};
-          };
-
-          /**
-           * Get payload to be submitted for the form action
-           * @returns {Object}
-           */
-          api.getPayload = function() {
-            return payLoad;
-          };
-        }
-
-        if (action.curie) {
-          /**
-           * Get curie documentation url
-           * @returns {String}
-           */
-          api.getDocUrl = function() {
-            return urltemplate.expand(action.curie.href, {
-              rel: name.split(':')[1]
-            });
-          };
-        }
-
-        api.setParams(params);
       },
 
       /**
