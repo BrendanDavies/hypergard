@@ -2,6 +2,19 @@
 
 [![Build Status](https://travis-ci.org/Comcast/hypergard.svg?branch=master)](https://travis-ci.org/Comcast/hypergard)
 
+### Errors
+
+The following are errors codes that may be rejected by Hypergard.
+
+| Code | Message | Description |
+| ---- | --------| ----------- |
+| 0011 | Fetch timeout | Network request was not completed before defined timeout |
+| 0020 | Url is not provided for this action | There was no valid resource found with the given business ID |
+| 0021 | Failed to retrieve action | Network request failed |
+| 0030 | Response is invalid JSON | Response from server was not valid JSON |
+| 0031 | Stream already used | Stream was used prior to HyperGard being able to process the response |
+
+
 ### Options
 
 #### `applyMiddlewareStack`
