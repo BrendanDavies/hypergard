@@ -18,6 +18,7 @@
 import deepExtend from '../lib/extend.js';
 import urltemplate from '../lib/urltemplate.js';
 import urlparse from '../lib/urlparse.js';
+import { safeStreamJSON } from '../lib/stream';
 
 var
   version = '4.0.0',
@@ -505,19 +506,22 @@ var
             });
           }
 
-          return response.json().then(function(data) {
-            return {
-              action: name,
-              data: isObject(data) ? new Resource(url, data) : response.text(),
-              xhr: response
-            };
-          }, function() {
-            return {
-              action: name,
-              data: response.text(),
-              xhr: response
-            };
-          });
+          return safeStreamJSON(response)
+            .then(function(data) {
+              return {
+                action: name,
+                data: isObject(data) ? new Resource(url, data) : data,
+                xhr: response
+              };
+            })
+            .catch(function(error) {
+              return {
+                action: name,
+                data: response,
+                error: error,
+                xhr: response
+              };
+            });
         },
 
         onError = function(response) {
@@ -569,19 +573,21 @@ var
             homepageLoaded = false;
           }
 
-          return response.json().then(function(data) {
-            return isObject(data) ? {
-              data: new Resource(endpoint, data),
-              xhr: response
-            } : Promise.reject();
-          })['catch'](function() {
-            return Promise.reject({
-              error: {
-                code: '0002',
-                msg: 'Could not parse homepage'
-              },
-              xhr: response
-            });
+          return safeStreamJSON(response)
+            .then(function(data) {
+              return isObject(data) ? {
+                data: new Resource(endpoint, data),
+                xhr: response
+              } : Promise.reject();
+            })
+            .catch(function() {
+              return Promise.reject({
+                error: {
+                  code: '0002',
+                  msg: 'Could not parse homepage'
+                },
+                xhr: response
+              });
           });
         },
 
