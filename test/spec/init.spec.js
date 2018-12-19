@@ -186,11 +186,11 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              data: [],
               error: {
                 code: '0002',
-                msg: 'Could not parse homepage'
+                msg: 'Could not parse homepage',
               },
-
               xhr: this.testResponse
             });
           });
@@ -217,9 +217,10 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              data: true,
               error: {
                 code: '0002',
-                msg: 'Could not parse homepage'
+                msg: 'Could not parse homepage',
               },
 
               xhr: this.testResponse
@@ -248,9 +249,10 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              data: false,
               error: {
                 code: '0002',
-                msg: 'Could not parse homepage'
+                msg: 'Could not parse homepage',
               },
 
               xhr: this.testResponse
@@ -279,9 +281,10 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              data: 1,
               error: {
                 code: '0002',
-                msg: 'Could not parse homepage'
+                msg: 'Could not parse homepage',
               },
 
               xhr: this.testResponse
@@ -310,9 +313,10 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              data: 'string',
               error: {
                 code: '0002',
-                msg: 'Could not parse homepage'
+                msg: 'Could not parse homepage',
               },
 
               xhr: this.testResponse

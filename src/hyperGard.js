@@ -578,13 +578,14 @@ var
               return isObject(data) ? {
                 data: new Resource(endpoint, data),
                 xhr: response
-              } : Promise.reject();
+              } : Promise.reject(data);
             })
-            .catch(function() {
+            .catch(function(rejection) {
               return Promise.reject({
+                data: rejection,
                 error: {
                   code: '0002',
-                  msg: 'Could not parse homepage'
+                  msg: 'Could not parse homepage',
                 },
                 xhr: response
               });
