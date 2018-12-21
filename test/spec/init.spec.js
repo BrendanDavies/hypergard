@@ -186,6 +186,7 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              action: 'homepage',
               data: [],
               error: {
                 code: '0002',
@@ -217,6 +218,7 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              action: 'homepage',
               data: true,
               error: {
                 code: '0002',
@@ -249,12 +251,12 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              action: 'homepage',
               data: false,
               error: {
                 code: '0002',
                 msg: 'Could not parse homepage',
               },
-
               xhr: this.testResponse
             });
           });
@@ -281,12 +283,12 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              action: 'homepage',
               data: 1,
               error: {
                 code: '0002',
                 msg: 'Could not parse homepage',
               },
-
               xhr: this.testResponse
             });
           });
@@ -313,12 +315,91 @@ describe('hyperGard', function() {
 
           it('should call reject promise with error object', function() {
             expect(this.onError).toHaveBeenCalledWith({
+              action: 'homepage',
               data: 'string',
               error: {
                 code: '0002',
                 msg: 'Could not parse homepage',
               },
+              xhr: this.testResponse
+            });
+          });
+        });
 
+        describe('returned Response (with invalid JSON)', function() {
+          var invalidJSON = 'Just some plain old text';
+
+          beforeEach(function(done) {
+            this.testResponse = new Response(invalidJSON, {
+              status: status || 200,
+              headers: {
+                'Content-type': 'application/hal+json'
+              }
+            });
+            window.fetch.and.returnValue(this.testResponse);
+            this.testHyperGard.fetch().then(this.onSuccess, this.onError).then(done, done);
+          });
+
+          it('should make fetch request', function() {
+            expect(window.fetch).toHaveBeenCalled();
+          });
+
+          it('should not call resolve promise', function() {
+            expect(this.onSuccess).not.toHaveBeenCalled();
+          });
+
+          it('should call reject promise with 1 param', function() {
+            expect(this.onError.calls.mostRecent().args.length).toEqual(1);
+          });
+
+          it('should call reject promise with `0030` error object', function() {
+            expect(this.onError).toHaveBeenCalledWith({
+              action: 'homepage',
+              data: invalidJSON,
+              error: {
+                code: '0030',
+                msg: 'Response is invalid JSON',
+              },
+              xhr: this.testResponse
+            });
+          });
+        });
+
+        describe('returned Response (when stream has already been used)', function() {
+          var invalidJSON = 'Just some plain old text';
+
+          beforeEach(function(done) {
+            this.testResponse = new Response(invalidJSON, {
+              status: status || 200,
+              headers: {
+                'Content-type': 'application/hal+json'
+              }
+            });
+            this.testResponse.text(); // Use Stream
+            window.fetch.and.returnValue(this.testResponse);
+            this.testHyperGard.fetch().then(this.onSuccess, this.onError).then(done, done);
+          });
+
+          it('should make fetch request', function() {
+            expect(window.fetch).toHaveBeenCalled();
+          });
+
+          it('should not call resolve promise', function() {
+            expect(this.onSuccess).not.toHaveBeenCalled();
+          });
+
+          it('should call reject promise with 1 param', function() {
+            expect(this.onError.calls.mostRecent().args.length).toEqual(1);
+          });
+
+          it('should call reject promise with `0031` error object', function() {
+            expect(this.onError).toHaveBeenCalledWith({
+              action: 'homepage',
+              data: undefined,
+              error: {
+                code: '0031',
+                msg: 'Stream already used',
+              },
               xhr: this.testResponse
             });
           });

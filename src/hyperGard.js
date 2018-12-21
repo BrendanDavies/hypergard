@@ -514,12 +514,12 @@ var
                 xhr: response
               };
             })
-            .catch(function(error) {
+            .catch(function(rejection) {
               return {
                 action: name,
-                data: response,
-                error: error,
-                xhr: response
+                data: rejection.data,
+                error: rejection.error,
+                xhr: response,
               };
             });
         },
@@ -563,9 +563,10 @@ var
      * @returns {Promise}
      */
     this.fetch = function() {
+      var action = 'homepage';
       var o = deepExtend({
         method: 'GET',
-        action: 'homepage',
+        action: action,
       }, options.xhr);
       var
         onSuccess = function(response) {
@@ -578,18 +579,22 @@ var
               return isObject(data) ? {
                 data: new Resource(endpoint, data),
                 xhr: response
-              } : Promise.reject(data);
-            })
-            .catch(function(rejection) {
-              return Promise.reject({
-                data: rejection,
+              } : Promise.reject({
+                data: data,
                 error: {
                   code: '0002',
                   msg: 'Could not parse homepage',
-                },
+                }
+              });
+            })
+            .catch(function(rejection) {
+              return Promise.reject({
+                action: action,
+                data: rejection.data,
+                error: rejection.error,
                 xhr: response
               });
-          });
+            });
         },
 
         onError = function(response) {
