@@ -8,6 +8,8 @@ The following are errors codes that may be rejected by Hypergard.
 
 | Code | Message | Description |
 | ---- | --------| ----------- |
+| 0001 | Failed to retrieve homepage | Network request for homepage resource failed |
+| 0002 | Could not parse homepage | Homepage response was not valid json |
 | 0011 | Fetch timeout | Network request was not completed before defined timeout |
 | 0020 | Url is not provided for this action | There was no valid resource found with the given business ID |
 | 0021 | Failed to retrieve action | Network request failed |
