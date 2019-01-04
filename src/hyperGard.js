@@ -563,10 +563,10 @@ var
      * @returns {Promise}
      */
     this.fetch = function() {
-      var action = 'homepage';
+      var name = 'homepage';
       var o = deepExtend({
         method: 'GET',
-        action: action,
+        action: name,
       }, options.xhr);
       var
         onSuccess = function(response) {
@@ -589,7 +589,7 @@ var
             })
             .catch(function(rejection) {
               return Promise.reject({
-                action: action,
+                action: name,
                 data: rejection.data,
                 error: rejection.error,
                 xhr: response
